@@ -39,36 +39,7 @@ typedef struct my_pthread_mutex_t {
 
 /* define your data structures here: */
 
-//start queue functions
-//struct for thread nodes
-typedef struct t_node{
-	//pointer to threadblock
-	tcb *thread_block;
-	//pointer to next threadblock in queue
-	struct t_node *next;
-}t_node;
-
-//queue object which holds the thread queue nodes
-//useful when deadling with programs with multiple queues
-typedef struct t_queue{
-	//define head and tail nodes of queue
-	struct t_node *head, *tail;
-	//hold the number of threads in queue
-	unsigned int numOfThreads;
-}t_queue;
-
-//define function for creating thread node
-struct t_node * createT_node(tcb * threadblock);
-// define function for creating thread queue
-struct t_queue * createT_queue();
-//define function for inserting t_node into queue
-void enQueue(t_queue * queue, tcb * threadBlock);
-//define function for retrieving node from given queue
-struct t_node * deQueue(t_queue * queue);
-//end queue functions
-
 // Feel free to add your own auxiliary data structures
-
 
 /* Function Declarations: */
 
