@@ -9,8 +9,6 @@
 #include <stdio.h>
 
 void initThreadLib(){
-	t_queue *runQ = createT_queue();
-	t_queue *waitQ = createT_queue();
 }
 
 
