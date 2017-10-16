@@ -20,7 +20,7 @@
 #include <sys/time.h>
 #include <signal.h>
 
-typedef uint my_pthread_t;
+typedef uint my_pthread_t; // should not be 0
 
 typedef struct threadControlBlock {
 	/* add something here */
@@ -34,7 +34,10 @@ typedef struct threadControlBlock {
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
-	/* add something here */
+	
+	short locked; // 0 when unlocked, 1 when locked
+	my_pthread_t holder; // if unlocked value is 0; if locked value is thread that locked the mutex
+
 } my_pthread_mutex_t;
 
 /* define your data structures here: */
