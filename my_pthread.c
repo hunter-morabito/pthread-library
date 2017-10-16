@@ -5,13 +5,12 @@
 // name: Hunter Morabito
 // username of iLab: hjm67
 // iLab Server: utility.cs.rutgers.edu
-
 #include "my_pthread_t.h"
 #include <stdio.h>
 
 void initThreadLib(){
-	struct t_queue *runQ = createT_queue();
-	struct t_queue *waitQ = createT_queue();
+	t_queue *runQ = createT_queue();
+	t_queue *waitQ = createT_queue();
 }
 
 //start queue funtions
@@ -30,7 +29,7 @@ struct t_node *createT_node(tcb *threadblock){
 //create a thread queue object and return ir
 struct t_queue *createT_queue(){
 	//allocate memory
-	struct t_queue *queue = (struct t_queue*)malloc(sizeof(struct t_queue));
+	struct t_queue *queue = (struct t_queue*)malloc(sizeof(t_queue));
 	//init head and tail
 	queue->head = queue->tail = NULL;
 	//init numofthreads
@@ -38,26 +37,29 @@ struct t_queue *createT_queue(){
 	return queue;
 }
 
-//enqueue function takes in the queue you wish to add to and the data that the node will hold
-void enQueue(struct t_queue *queue, tcb *threadblock){
+void enQueue(t_queue *queue, tcb *threadblock){
 	//create node
 	struct t_node *temp = createT_node(threadblock);
 	//empty check
 	if(queue->numOfThreads == 0){
 		queue->head = queue->tail = temp;
+		queue->numOfThreads++;
 		return;
 	}
-	
+
 	//add node to end of queue
 	queue->tail->next = temp;
 	//update tail to new node position
 	queue->tail = temp;
 	//increment number of threads in the queue
 	queue->numOfThreads++;
+
+	//print sitatement used for testing
+	printf("Added to queue. Num of threads in queue: %d", queue->numOfThreads);
 }
 
 //dequeue funtion returns the front of the given queue
-struct t_node *deQueue(struct t_queue *queue){
+struct t_node *deQueue(t_queue *queue){
 	if(queue->numOfThreads == 0){
 		return NULL;
 	}
@@ -67,6 +69,7 @@ struct t_node *deQueue(struct t_queue *queue){
 	queue->head = queue->head->next;
 	//decrement the number of threadas you have in queue
 	queue->numOfThreads--;
+	printf("Removed from queue. Num of threads in queue: %d", queue->numOfThreads);
 	//if front is now NULL, also update rear to NULL
 	if(queue->numOfThreads == 0)
 		queue->tail = NULL;
