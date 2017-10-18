@@ -19,6 +19,7 @@
 #include <ucontext.h>
 #include <sys/time.h>
 #include <signal.h>
+#include<stdint.h>
 
 typedef uint my_pthread_t; // should not be 0
 
@@ -67,12 +68,24 @@ void scan(pt_queue* pqueue);
 // define function for creating thread queue and node
 struct pt_queue* createPt_queue();
 struct t_node* createT_node();
+struct threadControlBlock* createTCB(my_pthread_t pid);
 
 //define function for inserting t_node into queue
 void enqueue(struct pt_queue* queue, struct t_node* newProcess);
 
 //define function for retrieving node from given queue
 struct t_node* dequeue(struct pt_queue* queue);
+
+
+//Other
+void scheduler();
+uint64_t getTimeStamp();
+void starttime(int us);
+void stoptime();
+void initThreadLib();
+void runThread(void* (*func)(void*), void* arg);
+int remove_from_queue(my_pthread_t thread);
+//int searchThread(my_pthread_t pid);
 
 /* Function Declarations: */
 void interrupt_handler();

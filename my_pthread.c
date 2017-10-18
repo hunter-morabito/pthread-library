@@ -10,44 +10,48 @@
 #include <ucontext.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 ucontext_t* maincontext;
+/* quantum1 will have all weights at 0
+*  quantum2 will have .5 - .11
+*  fcfs will have 1 - .49 except in 
+*  cases where the threads have been waiting a long time */
 pt_queue* quantum1,* quantum2,* fcfs;
 pt_queue* finishQueue; //may not need to implement
-tcb* mainthread,* currentthread;
-unsigned long timeInterval;
-struct timeval timer;
+t_node* mainthread,* currentthread;
+struct itimerval timer;
+struct sigaction* action;
+
+short cancel = 0; //when a thread should be canceled make this 1
+short dontinterrupt = 0; //when a thread should not be interrupted, make this =1; in sighandler, if this = 1, do not change context
 
 void initThreadLib(){
 	//initialize queues
 	quantum1 = createPt_queue();
 	quantum2 = createPt_queue();
 	fcfs = createPt_queue();
+	finishQueue = createPt_queue();
 
-	//initialize time valies
-	timer.it_value.tv_sec=1/1000000;
-	timer.it_value.tv_usec=10;
-	timer.it_interval.tv_sec=1/1000000;
-	timer.it_interval.tv_usec=10;
+	//initialize alarm values to zero
+	timer.it_value.tv_sec = 0;
+	timer.it_value.tv_usec = 0;
+	timer.it_interval.tv_sec = 0;
+	timer.it_interval.tv_usec = 0;
 
-	//create signals
-	starttime();
+	//create alarm signal
+	starttime(10);
 	signal(SIGVTALRM, scheduler);
-	//run the scan function after a set amount of time
-	signal(SI_TIMER, scan);
 
-	mainthread->tid = -1;
-	if (getcontext(mainthread->context) == -1){
+	mainthread->thread_block->tid = -1;
+	if (getcontext(mainthread->thread_block->context) == -1){
 		printf("Error while getting context\n");
 		exit(EXIT_FAILURE);
 	}
 
 	currentthread = mainthread;
 }
-
-void interrupt_handler(){
-	
-};
 
 /*priority queue methods*/
 uint64_t getTimeStamp(){
@@ -90,7 +94,7 @@ struct pt_queue* createPt_queue(){
 	return queue;
 }
 
-struct threadControlBlock createTCB(my_pthread_t pid){
+struct threadControlBlock* createTCB(my_pthread_t pid){
 	tcb * newTCB = (tcb *)malloc(sizeof(tcb));
 	if (newTCB == NULL){
 		printf("memory allocation error");
@@ -98,7 +102,7 @@ struct threadControlBlock createTCB(my_pthread_t pid){
 	}
 	newTCB->tid = pid;
 	newTCB->context->uc_link = maincontext;
-	newTCB->context->uc_stack.ss_pp = malloc(SIGSTKSZ);
+	newTCB->context->uc_stack.ss_sp = malloc(SIGSTKSZ);
 	newTCB->context->uc_stack.ss_size = SIGSTKSZ;
 	return newTCB;
 }
@@ -199,7 +203,7 @@ void frontBackSplit(struct t_node* source,
 void printQueue(struct pt_queue *queue){
     struct t_node* temp = queue->head;
     while(temp != NULL){
-        printf("weight: %f time: " PRIu64 , temp->weight, temp->time);
+        printf("weight: %f time: %" PRIu64 , temp->weight, temp->time);
         temp = temp->next;
     }
     printf("\n");
@@ -210,8 +214,14 @@ void stoptime(){
 	setitimer(ITIMER_VIRTUAL, 0, 0);
 }
 
-void starttime(){
-	setitimer(ITIMER_VIRTUAL,&timer,0);
+void starttime(int us){
+	struct itimerval old, new;
+	new.it_interval.tv_usec = 0;
+	new.it_interval.tv_sec = 0;
+	new.it_value.tv_usec = us;
+	new.it_value.tv_sec = us/1000000000;
+	if (setitimer (ITIMER_REAL, &new, 0) < 0)
+	  return;
 }
 
 void runThread(void* (*func)(void*), void* arg){
@@ -220,61 +230,197 @@ void runThread(void* (*func)(void*), void* arg){
 }
 
 int pthread_cancel(my_pthread_t thread){
-	// tcb* 
+	//go through the ready queues and remove the thread
+	t_node* temp;
+	if (remove_from_queue(thread) != 0){
+		//check if it is currently running thread
+		if (thread == currentthread->thread_block->tid){
+			cancel = 1;
+			scheduler();
+			return 1;
+		}
+	}
+	else{
+
+	}
+
+}
+
+int remove_from_queue(my_pthread_t thread){
+	t_node* prev = NULL;
+	t_node* temp;
+	pt_queue* queue = quantum1;
+	if (queue->length == 0){
+		return 0;
+	}
+
+	for (temp = queue->head; temp != NULL; prev = temp, temp = temp->next){
+		if (temp->thread_block->tid == thread){
+			queue->length--;
+			if (prev == NULL){
+				//remove the head
+				queue->head = temp->next;
+				enqueue(finishQueue, temp);
+				return 1;
+			}
+			//skip over temp
+			prev->next = temp->next;
+			enqueue(finishQueue, temp);
+			return 1;
+		}
+	}
+	queue = quantum2;
+	for (temp = queue->head; temp != NULL; temp = temp->next){
+		if (temp->thread_block->tid == thread){
+			queue->length--;
+			if (prev == NULL){
+				//remove the head
+				queue->head = temp->next;
+				enqueue(finishQueue, temp);
+				return 1;
+			}
+			//skip over temp
+			prev->next = temp->next;
+			enqueue(finishQueue, temp);
+			return 1;
+		}
+	}
+	queue = fcfs;
+	for (temp = queue->head; temp != NULL; temp = temp->next){
+		if (temp->thread_block->tid == thread){
+			if (prev == NULL){
+				queue->length--;
+				//remove the head
+				queue->head = temp->next;
+				enqueue(finishQueue, temp);
+				return 1;
+			}
+			//skip over temp and enqueue in finish queue
+			prev->next = temp->next;
+			enqueue(finishQueue, temp);
+			return 1;
+		}
+	}
+	queue = finishQueue;
+	for (temp = queue->head; temp != NULL; temp = temp->next){
+		if (temp->thread_block->tid == thread){
+			if (prev == NULL){
+				//if it is found in finish queue it has already been removed at some other point
+				return -1;
+			}
+		}
+	}
 }
 
 //returns 1 if thread exists in one of the ready queues, 0 if its in the finish queue and -1 if it does not exist
+/*
 int searchThread(my_pthread_t pid){
 	pt_queue* queue = quantum1;
 	node_t* temp;
-	for (temp = queue[0]; temp != NULL; temp = temp->next){
+	for (temp = queue->head; temp != NULL; temp = temp->next){
 		if (temp->tid == pid){
 			return 1;
 		}
 	}
 	queue = quantum2;
-	for (temp = queue[0]; temp != NULL; temp = temp->next){
+	for (temp = queue->head; temp != NULL; temp = temp->next){
 		if (temp->tid == pid){
 			return 1;
 		}
 	}
 	queue = fcfs;
-	for (temp = queue[0]; temp != NULL; temp = temp->next){
+	for (temp = queue->head; temp != NULL; temp = temp->next){
 		if (temp->tid == pid){
 			return 1;
 		}
 	}
 	queue = finishQueue;
-	for (temp = queue[0]; temp != NULL; temp = temp->next){
+	for (temp = queue->head; temp != NULL; temp = temp->next){
 		if (temp->tid == pid){
 			return 0;
 		}
 	}
 	return -1;
-}
+}*/
 
 void scheduler(){
 	stoptime();
-	if (getcontext(maincontext == -1)){
+	//scan all queues to adjust priority
+	//scan();
+	if (getcontext(maincontext) == -1){
 		printf("error: could not get context");
 		exit(EXIT_FAILURE);
+	}
+
+	if (dontinterrupt == 1){
+		//do not switch contexts
+	}
+
+	if (!cancel){
+		//enqueue back into quantum1 for now
+		enqueue(quantum1, currentthread);
+	}
+
+	t_node* current;
+	t_node* next_thread;
+	//check first is something has very high priority
+	//then check if something is in the run queue
+	if (fcfs->head->weight <= .1){
+		//run this thread it has been waiting for a while
+	}
+	else if (quantum2->head->weight <=.1){
+
+	}
+
+	if (quantum1->head != NULL){
+		//standard run queue
+		current = currentthread;
+		next_thread = dequeue(quantum1);
+		currentthread = next_thread;
+		starttime(10);
+		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+			printf("Error while swap context\n"); /*calling the next thread*/
+		}
+	}
+	else if (quantum2->head != NULL){
+		current = currentthread;
+		next_thread = dequeue(quantum1);
+		currentthread = next_thread;
+		starttime(20); //run for longer
+		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+			printf("Error while swap context\n"); /*calling the next thread*/
+		}
+	}
+	else if (fcfs->head != NULL){
+		current = currentthread;
+		next_thread = dequeue(quantum1);
+		currentthread = next_thread;
+		starttime(50); //longest a thread can run for
+		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+			printf("Error while swap context\n"); /*calling the next thread*/
+		}
+	}
+	else {
+		//nothing to schedule :(
 	}
 }
 
 /* create a new thread */
-int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg){
-	if(getcontext(thread->context) == -1){
+int my_pthread_create(my_pthread_t* thread, pthread_attr_t* attr, void *(*function)(void*), void * arg){
+	tcb* newThread = createTCB(*thread);
+	if(getcontext(newThread->context) == -1){
 		fprintf(stderr,"error: couldn't get context");
 		exit(EXIT_FAILURE);	
 	}
 	//we get a pointer to a uint so we must deference it
-	tcb newThread = createTCB(*thread);
 	if (newThread == NULL){
 		printf("fatal memory allocation error");
 		exit(EXIT_FAILURE);
 	}
-	//make context
-	//enqueue
+
+	makecontext(newThread->context, (void (*) ()) runThread, 2, function, arg);
+	t_node* newNode = createT_node(newThread);
+	enqueue(quantum1, newNode);
 
 	return 0;
 };
@@ -282,16 +428,17 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield(){
 	stoptime();
-	starttime();
+	starttime(10);
 	scheduler();
+	return 0;
 };
 
 /* terminate a thread */
 void my_pthread_exit(void* value_ptr){
-	currentthread->returnvalue = value_ptr;
-	enqueue(finishQueue, current);
-	print_queue(finishQueue);
-	pthread_cancel(currentthread->tid);
+	currentthread->thread_block->returnvalue = value_ptr;
+	enqueue(finishQueue, currentthread);
+	printQueue(finishQueue);
+	pthread_cancel(currentthread->thread_block->tid);
 };
 
 /* wait for thread termination */
@@ -319,20 +466,20 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 	
 	stoptime();
 	mutex->locked = 1;
-	mutex->holder = currentthread->tid; // must be assigned to my_pthread_t of current thread
-	starttime();
+	mutex->holder = currentthread->thread_block->tid; // must be assigned to my_pthread_t of current thread
+	starttime(10);
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
-	if(mutex == NULL || mutex->holder == currentthread->tid) // must compare to my_pthread_t of current thread
+	if(mutex == NULL || mutex->holder == currentthread->thread_block->tid) // must compare to my_pthread_t of current thread
 		return(-1); // failed, mutex is not initialized
 
 	stoptime();
 	mutex->locked=0;
 	mutex->holder=0;
-	starttime();
+	starttime(10);
 
 	return 0;
 };
@@ -345,4 +492,16 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
 	free(mutex);
 	return 0;
 };
+
+//TEST SECTION
+void* testfuc(void* a){
+	printf("doing things");
+}
+
+my_pthread_t t1;
+//test the code
+int main(){
+	initThreadLib();
+	my_pthread_create(&t1,NULL,&testfuc, (void *) 1);
+}
 
