@@ -30,7 +30,7 @@ typedef struct threadControlBlock {
 	struct itimerval* it;
 	//signal actions
 	struct sigaction* action,* oaction;
-	ucontext_t* context; 
+	ucontext_t context; 
 }tcb; 
 
 typedef struct t_node{

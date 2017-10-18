@@ -7,13 +7,13 @@
 // iLab Server: utility.cs.rutgers.edu
 #include "my_pthread_t.h"
 #include <stdio.h>
-#include <ucontext.h>
+#include <sys/ucontext.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <stdint.h>
 #include <inttypes.h>
 
-ucontext_t* maincontext;
+ucontext_t maincontext;
 /* quantum1 will have all weights at 0
 *  quantum2 will have .5 - .11
 *  fcfs will have 1 - .49 except in 
@@ -30,10 +30,21 @@ short dontinterrupt = 0; //when a thread should not be interrupted, make this =1
 void initThreadLib(){
 	//initialize queues
 	quantum1 = createPt_queue();
+	if(quantum1 == NULL){
+		exit(EXIT_FAILURE);
+	}
 	quantum2 = createPt_queue();
+	if(quantum2 == NULL){
+		exit(EXIT_FAILURE);
+	}
 	fcfs = createPt_queue();
+	if(fcfs == NULL){
+		exit(EXIT_FAILURE);
+	}
 	finishQueue = createPt_queue();
-
+	if(finishQueue == NULL){
+		exit(EXIT_FAILURE);
+	}
 	//initialize alarm values to zero
 	timer.it_value.tv_sec = 0;
 	timer.it_value.tv_usec = 0;
@@ -41,16 +52,17 @@ void initThreadLib(){
 	timer.it_interval.tv_usec = 0;
 
 	//create alarm signal
-	starttime(10);
 	signal(SIGVTALRM, scheduler);
 
-	mainthread->thread_block->tid = -1;
-	if (getcontext(mainthread->thread_block->context) == -1){
-		printf("Error while getting context\n");
+	if ( getcontext(&maincontext)== -1) {
+		printf("Error while getting context...exiting\n");
 		exit(EXIT_FAILURE);
 	}
-
+	
+	tcb* newtcb = createTCB(-1);
+	mainthread - createT_node(newtcb);
 	currentthread = mainthread;
+	starttime(10);
 }
 
 /*priority queue methods*/
@@ -100,10 +112,14 @@ struct threadControlBlock* createTCB(my_pthread_t pid){
 		printf("memory allocation error");
 		return NULL;
 	}
+	if ( getcontext(&(newTCB->context)) == -1) {
+		printf("Error while getting context...exiting\n");
+		exit(EXIT_FAILURE);
+	}
 	newTCB->tid = pid;
-	newTCB->context->uc_link = maincontext;
-	newTCB->context->uc_stack.ss_sp = malloc(SIGSTKSZ);
-	newTCB->context->uc_stack.ss_size = SIGSTKSZ;
+	newTCB->context.uc_link = &maincontext;
+	newTCB->context.uc_stack.ss_sp = malloc(SIGSTKSZ);
+	newTCB->context.uc_stack.ss_size = SIGSTKSZ;
 	return newTCB;
 }
 
@@ -218,8 +234,8 @@ void starttime(int us){
 	struct itimerval old, new;
 	new.it_interval.tv_usec = 0;
 	new.it_interval.tv_sec = 0;
-	new.it_value.tv_usec = us;
-	new.it_value.tv_sec = us/1000000000;
+	new.it_value.tv_usec = 0;
+	new.it_value.tv_sec = us;
 	if (setitimer (ITIMER_REAL, &new, 0) < 0)
 	  return;
 }
@@ -347,16 +363,11 @@ void scheduler(){
 	stoptime();
 	//scan all queues to adjust priority
 	//scan();
-	if (getcontext(maincontext) == -1){
-		printf("error: could not get context");
-		exit(EXIT_FAILURE);
-	}
-
 	if (dontinterrupt == 1){
 		//do not switch contexts
 	}
 
-	if (!cancel){
+	if (!cancel && currentthread != NULL){
 		//enqueue back into quantum1 for now
 		enqueue(quantum1, currentthread);
 	}
@@ -378,7 +389,8 @@ void scheduler(){
 		next_thread = dequeue(quantum1);
 		currentthread = next_thread;
 		starttime(10);
-		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+		if (swapcontext(&(current->thread_block->context), 
+			&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n"); /*calling the next thread*/
 		}
 	}
@@ -387,7 +399,8 @@ void scheduler(){
 		next_thread = dequeue(quantum1);
 		currentthread = next_thread;
 		starttime(20); //run for longer
-		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+		if (swapcontext(&(current->thread_block->context), 
+		&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n"); /*calling the next thread*/
 		}
 	}
@@ -396,7 +409,8 @@ void scheduler(){
 		next_thread = dequeue(quantum1);
 		currentthread = next_thread;
 		starttime(50); //longest a thread can run for
-		if (swapcontext(current->thread_block->context, next_thread->thread_block->context) == -1 ){
+		if (swapcontext(&(current->thread_block->context), 
+		&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n"); /*calling the next thread*/
 		}
 	}
@@ -408,7 +422,7 @@ void scheduler(){
 /* create a new thread */
 int my_pthread_create(my_pthread_t* thread, pthread_attr_t* attr, void *(*function)(void*), void * arg){
 	tcb* newThread = createTCB(*thread);
-	if(getcontext(newThread->context) == -1){
+	if(getcontext(&(newThread->context)) == -1){
 		fprintf(stderr,"error: couldn't get context");
 		exit(EXIT_FAILURE);	
 	}
@@ -418,7 +432,7 @@ int my_pthread_create(my_pthread_t* thread, pthread_attr_t* attr, void *(*functi
 		exit(EXIT_FAILURE);
 	}
 
-	makecontext(newThread->context, (void (*) ()) runThread, 2, function, arg);
+	makecontext(&(newThread->context), (void (*) ()) runThread, 2, function, arg);
 	t_node* newNode = createT_node(newThread);
 	enqueue(quantum1, newNode);
 
@@ -503,5 +517,6 @@ my_pthread_t t1;
 int main(){
 	initThreadLib();
 	my_pthread_create(&t1,NULL,&testfuc, (void *) 1);
+	return 0;
 }
 
