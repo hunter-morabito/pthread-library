@@ -45,6 +45,11 @@ void initThreadLib(){
 	if(finishQueue == NULL){
 		exit(EXIT_FAILURE);
 	}
+
+	struct sigaction sa;
+	sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = scheduler;
 	//initialize alarm values to zero
 	timer.it_value.tv_sec = 0;
 	timer.it_value.tv_usec = 0;
@@ -52,7 +57,10 @@ void initThreadLib(){
 	timer.it_interval.tv_usec = 0;
 
 	//create alarm signal
-	signal(SIGVTALRM, scheduler);
+	if (sigaction(SIGVTALRM, &sa, NULL) == -1) {
+        printf("error with: sigaction\n");
+        exit(EXIT_FAILURE);
+    }
 
 	if ( getcontext(&maincontext)== -1) {
 		printf("Error while getting context...exiting\n");
@@ -231,11 +239,11 @@ void stoptime(){
 }
 
 void starttime(int us){
-	struct itimerval old, new;
-	new.it_interval.tv_usec = 0;
-	new.it_interval.tv_sec = 0;
-	new.it_value.tv_usec = 0;
-	new.it_value.tv_sec = us;
+	struct itimerval new;
+	new.it_interval.tv_usec = us;
+	new.it_interval.tv_sec = us/1000000000;
+	new.it_value.tv_usec = us;
+	new.it_value.tv_sec = us/1000000000;
 	if (setitimer (ITIMER_REAL, &new, 0) < 0)
 	  return;
 }
@@ -363,6 +371,7 @@ void scheduler(){
 	stoptime();
 	//scan all queues to adjust priority
 	//scan();
+	testint++;
 	if (dontinterrupt == 1){
 		//do not switch contexts
 	}
@@ -515,8 +524,10 @@ void* testfuc(void* a){
 my_pthread_t t1;
 //test the code
 int main(){
+	printf("here\n");
 	initThreadLib();
 	my_pthread_create(&t1,NULL,&testfuc, (void *) 1);
+	while(1); //busy work
 	return 0;
 }
 
