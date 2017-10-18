@@ -18,8 +18,6 @@ tcb* mainthread,* currentthread;
 unsigned long timeInterval;
 struct timeval timer;
 
-short dontinterrupt = 0; //when a thread should not be interrupted, make this =1; in sighandler, if this = 1, do not change context
-
 void initThreadLib(){
 	//initialize queues
 	quantum1 = createPt_queue();
@@ -201,7 +199,7 @@ void frontBackSplit(struct t_node* source,
 void printQueue(struct pt_queue *queue){
     struct t_node* temp = queue->head;
     while(temp != NULL){
-        printf("weight: %f time: %" PRIu64 , temp->weight, temp->time);
+        printf("weight: %f time: " PRIu64 , temp->weight, temp->time);
         temp = temp->next;
     }
     printf("\n");
@@ -222,7 +220,7 @@ void runThread(void* (*func)(void*), void* arg){
 }
 
 int pthread_cancel(my_pthread_t thread){
-	tcb* 
+	// tcb* 
 }
 
 //returns 1 if thread exists in one of the ready queues, 0 if its in the finish queue and -1 if it does not exist
@@ -319,10 +317,10 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 	while(mutex->locked != 0)
 		my_pthread_yield();
 	
-	dontinterrupt = 1;
+	stoptime();
 	mutex->locked = 1;
 	mutex->holder = currentthread->tid; // must be assigned to my_pthread_t of current thread
-	dontinterrupt = 0;
+	starttime();
 	return 0;
 };
 
@@ -331,10 +329,10 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
 	if(mutex == NULL || mutex->holder == currentthread->tid) // must compare to my_pthread_t of current thread
 		return(-1); // failed, mutex is not initialized
 
-	dontinterrupt = 1;
+	stoptime();
 	mutex->locked=0;
 	mutex->holder=0;
-	dontinterrupt = 0;
+	starttime();
 
 	return 0;
 };
