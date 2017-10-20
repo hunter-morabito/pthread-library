@@ -62,8 +62,8 @@ struct t_node* sortedMerge(struct t_node* a, struct t_node* b);
 void frontBackSplit(struct t_node* source, struct t_node** front, struct t_node** back);
 void printQueue(struct pt_queue *queue);
 
-//goes through pq and adjusts weight based on runtime
-void scan(pt_queue* pqueue);
+//goes through all pq and adjusts weight based on runtime
+void scan();
 
 // define function for creating thread queue and node
 struct pt_queue* createPt_queue();
@@ -78,7 +78,7 @@ struct t_node* dequeue(struct pt_queue* queue);
 
 
 //Other
-void scheduler();
+void scheduler(int signum);
 uint64_t getTimeStamp();
 void starttime(int us);
 void stoptime();
