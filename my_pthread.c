@@ -153,6 +153,7 @@ struct t_node* dequeue(struct pt_queue* pqueue){
 	if(pqueue->length == 0){
 		return NULL;
 	}
+
 	//hold onto previous head
 	struct t_node* temp = pqueue->head;
 	//update the head node to the next node
@@ -163,6 +164,8 @@ struct t_node* dequeue(struct pt_queue* pqueue){
 	if(pqueue->length == 0)
 		pqueue->tail = NULL;
 	//return thread
+	//reset temp->next before deqeuing!
+	temp->next = NULL;
 	return temp;
 }
 
@@ -282,11 +285,10 @@ int pthread_cancel(my_pthread_t thread){
 }
 
 int remove_from_queue(my_pthread_t thread){
-	t_node* prev = NULL;
+	t_node* prev;
 	t_node* temp;
 	pt_queue* queue = quantum1;
-	printQueue(queue);
-	for (temp = queue->head; temp != NULL; prev = temp, temp = temp->next){
+	for (temp = queue->head, prev = NULL; temp != NULL; prev = temp, temp = temp->next){
 		if (temp->thread_block->tid == thread){
 			queue->length--;
 			if (prev == NULL){
@@ -300,7 +302,7 @@ int remove_from_queue(my_pthread_t thread){
 		}
 	}
 	queue = quantum2;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
+	for (temp = queue->head, prev = NULL; temp != NULL; prev = temp, temp = temp->next){
 		if (temp->thread_block->tid == thread){
 			queue->length--;
 			if (prev == NULL){
@@ -314,7 +316,7 @@ int remove_from_queue(my_pthread_t thread){
 		}
 	}
 	queue = quantum3;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
+	for (temp = queue->head, prev = NULL; temp != NULL; prev = temp, temp = temp->next){
 		if (temp->thread_block->tid == thread){
 			if (prev == NULL){
 				queue->length--;
@@ -328,12 +330,9 @@ int remove_from_queue(my_pthread_t thread){
 		}
 	}
 	queue = finishQueue;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
+	for (temp = queue->head, prev = NULL; temp != NULL; prev = temp, temp = temp->next){
 		if (temp->thread_block->tid == thread){
-			if (prev == NULL){
-				//if it is found in finish queue it has already been removed at some other point
-				return -1;
-			}
+			return -1;
 		}
 	}
 }
@@ -409,7 +408,7 @@ void scheduler(int signum){
 	}
 
 	
-	if (!cancel && currentthread != NULL){
+	if (!cancel && currentthread != NULL && currentthread != mainthread){
 		//enqueue back into quantum1 for now
 		printf("enqueuing: 0x%" PRIXPTR "\n", currentthread);
 		enqueue(quantum1, currentthread);
@@ -505,7 +504,6 @@ int my_pthread_yield(){
 void my_pthread_exit(void* value_ptr){
 	currentthread->thread_block->returnvalue = value_ptr;
 	enqueue(finishQueue, currentthread);
-	printQueue(finishQueue);
 	pthread_cancel(currentthread->thread_block->tid);
 };
 
@@ -523,7 +521,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t* mutex, const pthread_mutexattr_t* 
 	mutex = (my_pthread_mutex_t*)malloc(sizeof(my_pthread_mutex_t));
 	mutex->locked = 0;
 	mutex->holder = 0;
-	starttime(10);
+	starttime(1);
 	return 0;
 };
 
@@ -534,9 +532,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 
 	stoptime();
 	while(mutex->locked != 0){
-		starttime(10);
 		my_pthread_yield();
-		stopTime();
 	}
 	
 	mutex->locked = 1;
@@ -550,7 +546,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
 	
 	stoptime();
 	if(mutex == NULL || mutex->holder == currentthread->thread_block->tid){ // must compare to my_pthread_t of current thread
-		starttime(10);
+		starttime(1);
 		return(-1); // failed, mutex is not initialized
 	}
 
@@ -566,29 +562,37 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
 	
 	stoptime();
 	if(mutex==NULL || mutex->locked!=0){
-		starttime(10);
+		starttime(1);
 		return(-1); // failed, mutex is not initialized or is in use
 	}
 
 	free(mutex);
-	starttime(10);
+	starttime(1);
 	return 0;
 };
+
+void* testfuc2(void* a){
+	int i = 0;
+	while (i < 10000000){
+		i++;
+	};
+}
 
 //TEST SECTION
 void* testfuc(void* a){
 	while (count < 10000000){
 		count++;
 	};
-	printf("count: %d\n", count);
 }
 
-my_pthread_t t1;
+my_pthread_t t1 = 2;
+my_pthread_t t2 = 3;
 //test the code
 int main(){
 	initThreadLib();
 	printf("mainthread: 0x%" PRIXPTR " id: %d\n", mainthread, mainthread->thread_block->tid);
 	my_pthread_create(&t1,NULL,&testfuc, (void *) 1);
+	my_pthread_create(&t2,NULL,&testfuc2, (void *) 1);
 	printQueue(quantum1);
 	while(1){
 		if (mainthread != currentthread){
