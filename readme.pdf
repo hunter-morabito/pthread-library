@@ -1,0 +1,37 @@
+Group memebers:
+John Freese
+jf728
+ilab machine
+
+Nicholas Konopka
+njk42
+ilab machien
+
+Hunter Morabito
+hjm67
+utility.cs.rutgers.edu
+
+Implementation:
+
+---------------------------------
+
+Multi-Level Priority Queue
+
+We have three MLPQ's implemented to hold our Thread Control Blocks.
+Each of these Thread Control Blocks have their own priorities (weights)  associated with them.
+The run queue holds all threads that have just been created and therefore have the highest priority.
+The wait queue holds threads that have lower priority. 
+The last queue holds threads that have been waiting a long time and have priority to run.
+As new threads are added to the queues, they are sorted using an implementation of Merge Sort.
+
+---------------------------------
+
+Scheduler
+
+The first thing the scheduler checks is whether or not the current thread needs to be interrupted, or canceled.
+These checks are made using two global vaiables. The scheduler then checks the priority queues. 
+Threads sitting in the standard run queue are given the least amount of time to run. As the run queue completes its 
+threads, the scheduler then focuses its attention on the threads that are waiting. The threads that have been
+waiting the longest also get the most processing time when they are given priority to run.
+
+

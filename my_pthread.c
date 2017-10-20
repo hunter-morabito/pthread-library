@@ -514,13 +514,16 @@ int my_pthread_join(my_pthread_t thread, void** value_ptr){
 	return 0;
 };
 
-/* initial the mutex lock */
+/* initialize the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t* mutex, const pthread_mutexattr_t* mutexattr){
 	if(mutex != NULL)
 		return(-1); // failed, mutex is already initialized
 
+	stoptime();
+	mutex = (my_pthread_mutex_t*)malloc(sizeof(my_pthread_mutex_t));
 	mutex->locked = 0;
 	mutex->holder = 0;
+	starttime(10);
 	return 0;
 };
 
@@ -529,10 +532,13 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 	if(mutex == NULL)
 		return(-1); // failed, mutex is not initialized
 
-	while(mutex->locked != 0)
-		my_pthread_yield();
-	
 	stoptime();
+	while(mutex->locked != 0){
+		starttime(10);
+		my_pthread_yield();
+		stopTime();
+	}
+	
 	mutex->locked = 1;
 	mutex->holder = currentthread->thread_block->tid; // must be assigned to my_pthread_t of current thread
 	starttime(1);
@@ -541,10 +547,13 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
-	if(mutex == NULL || mutex->holder == currentthread->thread_block->tid) // must compare to my_pthread_t of current thread
-		return(-1); // failed, mutex is not initialized
-
+	
 	stoptime();
+	if(mutex == NULL || mutex->holder == currentthread->thread_block->tid){ // must compare to my_pthread_t of current thread
+		starttime(10);
+		return(-1); // failed, mutex is not initialized
+	}
+
 	mutex->locked=0;
 	mutex->holder=0;
 	starttime(1);
@@ -554,10 +563,15 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
-	if(mutex==NULL || mutex->locked!=0)
+	
+	stoptime();
+	if(mutex==NULL || mutex->locked!=0){
+		starttime(10);
 		return(-1); // failed, mutex is not initialized or is in use
+	}
 
 	free(mutex);
+	starttime(10);
 	return 0;
 };
 
