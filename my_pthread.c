@@ -509,6 +509,24 @@ void my_pthread_exit(void* value_ptr){
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void** value_ptr){
+	
+	short threadEnded = 0;
+	t_node* cur;
+
+	while(threadEnded == 0){
+		if(finishQueue->head!=NULL){
+			cur = finishQueue->head;
+
+			while(cur!=NULL){
+				if(cur->thread_block->tid == thread)
+					threadEnded = 1;
+				cur=cur->next;
+			}
+		}
+
+		if(threadEnded == 0)
+			yield();
+	}
 	return 0;
 };
 
@@ -519,6 +537,12 @@ int my_pthread_mutex_init(my_pthread_mutex_t* mutex, const pthread_mutexattr_t* 
 
 	stoptime();
 	mutex = (my_pthread_mutex_t*)malloc(sizeof(my_pthread_mutex_t));
+	if(mutex == NULL){
+		printf("memory allocation error");
+		starttime(10);
+		return(-1);
+	}
+
 	mutex->locked = 0;
 	mutex->holder = 0;
 	starttime(1);
