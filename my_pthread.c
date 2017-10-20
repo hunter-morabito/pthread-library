@@ -525,7 +525,7 @@ int my_pthread_join(my_pthread_t thread, void** value_ptr){
 		}
 
 		if(threadEnded == 0)
-			yield();
+			my_pthread_yield();
 	}
 	return 0;
 };
