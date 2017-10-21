@@ -24,6 +24,7 @@ The wait queue holds threads that have lower priority.
 The last queue holds threads that have been waiting a long time and have priority to run.
 As new threads are added to the queues, they are sorted using an implementation of Merge Sort.
 
+
 ---------------------------------
 
 Scheduler
@@ -34,4 +35,6 @@ Threads sitting in the standard run queue are given the least amount of time to 
 threads, the scheduler then focuses its attention on the threads that are waiting. The threads that have been
 waiting the longest also get the most processing time when they are given priority to run.
 
+Threads in the run queue will be given 1 microsecond to run. As the threads get further back in the queue, that time increaes to 2 microseconds, and then to a maximum of 5 microseconds.
 
+The scheduler will also run a function called scan(). This is our maintenince cycle. For every 100 microseconds that a thread has run, its weight will be decreased by .01. After the weights have been ajdusted, the queues will be re-sorted with an implementation of merge sort. This ensures that threads that have been running give new threads time to run. 
