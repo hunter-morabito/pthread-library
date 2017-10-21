@@ -531,7 +531,7 @@ int my_pthread_join(my_pthread_t thread, void** value_ptr){
 		if(finishQueue->head!=NULL){
 			cur = finishQueue->head;
 
-			while(cur!=NULL){
+			while(cur!=NULL && threadEnded==0){
 				if(cur->thread_block->tid == thread)
 					threadEnded = 1;
 				cur=cur->next;
