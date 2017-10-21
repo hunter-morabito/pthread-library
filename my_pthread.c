@@ -16,17 +16,16 @@
 
 ucontext_t maincontext;
 /* quantum1 will have all weights at 0
-*  quantum2 will have .5 - .11
-*  quantum3 will have 1 - .49 except in 
+*  quantum2 will have 1 - 5
+*  quantum3 will have 6 - 10 except in 
 *  cases where the threads have been waiting a long time */
+pt_queue* wait_queue;
 pt_queue* quantum1,* quantum2,* quantum3;
 pt_queue* finishQueue; //may not need to implement
 t_node* mainthread,* currentthread;
 static int count = 0;
 
-
 short cancel = 0; //when a thread should be canceled make this 1
-short dontinterrupt = 0; //when a thread should not be interrupted, make this =1; in sighandler, if this = 1, do not change context
 
 void initThreadLib(){
 	//initialize queues
@@ -48,7 +47,10 @@ void initThreadLib(){
 	if(finishQueue == NULL){
 		exit(EXIT_FAILURE);
 	}
-
+	wait_queue = createPt_queue();
+	if(wait_queue == NULL){
+		exit(EXIT_FAILURE);
+	}
 
 	memset (&sa, 0, sizeof (sa));
     sa.sa_handler = &scheduler;
@@ -278,10 +280,7 @@ int pthread_cancel(my_pthread_t thread){
 			return 1;
 		}
 	}
-	else{
-
-	}
-
+	return 0;
 }
 
 int remove_from_queue(my_pthread_t thread){
@@ -337,64 +336,39 @@ int remove_from_queue(my_pthread_t thread){
 	}
 }
 
-//returns 1 if thread exists in one of the ready queues, 0 if its in the finish queue and -1 if it does not exist
-/*
-int searchThread(my_pthread_t pid){
-	pt_queue* queue = quantum1;
-	node_t* temp;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
-		if (temp->tid == pid){
-			return 1;
-		}
-	}
-	queue = quantum2;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
-		if (temp->tid == pid){
-			return 1;
-		}
-	}
-	queue = quantum3;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
-		if (temp->tid == pid){
-			return 1;
-		}
-	}
-	queue = finishQueue;
-	for (temp = queue->head; temp != NULL; temp = temp->next){
-		if (temp->tid == pid){
-			return 0;
-		}
-	}
-	return -1;
-}*/
-
 void scan(){
 	uint64_t difference;
-	//every 100 us decrease prio by .01
+	//every 1000 us decrease prio by 1
 	uint64_t mod;
 	t_node* temp;
 	pt_queue* queue;
 	//go through quantum2 and quantum3
 	queue = quantum2;
 	for (temp = queue->head; temp != NULL; temp = temp->next){
-		difference = temp->time;
-		mod = difference % 100 * .01;
-		temp->weight -= mod;
-		if (temp->weight < 0){
-			temp->weight = 0;
-		}	
+		difference = getTimeStamp() - temp->time;
+		mod = difference / 1000000; //in milliseonds
+		if (!(mod > temp->weight)) {
+			temp->weight -= mod;
+		}
+		else {
+			if (temp->weight >= 1)
+				temp->weight -= 1;
+		}
 	}
 	//perform merge sort on queue
 	mergeSort(&queue->head);
 
 	queue = quantum3;
 	for (temp = queue->head; temp != NULL; temp = temp->next){
-		difference = temp->time;
-		mod = difference % 100 * .01;
-		temp->weight -= mod;
-		if (temp->weight < 0){
-			temp->weight = 0;
-		}	
+		difference = getTimeStamp() - temp->time;
+		mod = difference / 1000000;
+		if (!(mod > temp->weight)) {
+			temp->weight -= mod;
+		}
+		else {
+			if (temp->weight >= 1)
+				temp->weight -= 1;
+		}
 	}
 	mergeSort(&queue->head);
 }
@@ -402,40 +376,71 @@ void scan(){
 void scheduler(int signum){
 	stoptime();
 	//scan all queues to adjust priority
-	//scan();
-	if (dontinterrupt == 1){
-		//do not switch contexts
-	}
+	scan();
+	printf("cthread weight: %d\n", currentthread->weight);
 
-	
-	if (!cancel && currentthread != NULL && currentthread != mainthread){
+	if (signum == 1){
+		enqueue(currentthread, wait_queue);
+	}
+	else if (!cancel && currentthread != NULL){
 		//enqueue back into quantum1 for now
-		printf("enqueuing: 0x%" PRIXPTR "\n", currentthread);
-		enqueue(quantum1, currentthread);
+			//means that signal called scheduler otherwise yield would call scheduler
+			currentthread->weight += 5;
+		if (currentthread->weight > 10)
+			currentthread->weight = 10;
+		if (currentthread->weight > 5){
+			printf("enqueuing: 0x%" PRIXPTR " in quantum 3\n", currentthread);
+			enqueue(quantum3, currentthread);
+		}
+		else if (currentthread->weight > 0){
+			printf("enqueuing: 0x%" PRIXPTR "in quantum 2\n", currentthread);
+			enqueue(quantum2, currentthread);
+		}
+		else{
+			printf("enqueuing: 0x%" PRIXPTR "in quantum 1\n", currentthread);
+			enqueue(quantum1, currentthread);
+		}
 	}
 	else{
 		cancel = 0;
 	}
 
-	printf("count: %d\n", count);
+	//printf("count: %d\n", count);
 	t_node* current;
 	t_node* next_thread;
 	//check first is something has very high priority
 	//then check if something is in the run queue
-	if (quantum3->head != NULL && quantum3->head->weight <= .1){
+	if (quantum3->head != NULL && quantum3->head->weight <= 1){
 		//run this thread it has been waiting for a while
+		current = currentthread;
+		next_thread = dequeue(quantum3);
+		printf("dequeuing from q3 first!: 0x%" PRIXPTR "\n", next_thread);
+		currentthread = next_thread;
+		currentthread->weight = 6;
+		starttime(5);
+		if (swapcontext(&(current->thread_block->context), 
+			&(next_thread->thread_block->context)) == -1 ){
+			printf("Error while swap context\n");
+		}
 	}
-	else if (quantum2->head != NULL && quantum2->head->weight <=.1){
-
+	else if (quantum2->head != NULL && quantum2->head->weight <= 1){
+		current = currentthread;
+		next_thread = dequeue(quantum3);
+		printf("dequeuing from q2 first!: 0x%" PRIXPTR "\n", next_thread);
+		currentthread = next_thread;
+		currentthread->weight = 1;
+		starttime(5);
+		if (swapcontext(&(current->thread_block->context), 
+			&(next_thread->thread_block->context)) == -1 ){
+			printf("Error while swap context\n");
+		}
 	}
-
-	if (quantum1->head != NULL){
+	else if (quantum1->head != NULL){
 		//standard run queue
 		current = currentthread;
 		next_thread = dequeue(quantum1);
 		printf("next_thread: 0x%" PRIXPTR "\n", next_thread);
 		currentthread = next_thread;
-		next_thread->weight += .5;
 		starttime(1);
 		if (swapcontext(&(current->thread_block->context), 
 			&(next_thread->thread_block->context)) == -1 ){
@@ -444,9 +449,11 @@ void scheduler(int signum){
 	}
 	else if (quantum2->head != NULL){
 		current = currentthread;
-		next_thread = dequeue(quantum1);
+		next_thread = dequeue(quantum2);
 		currentthread = next_thread;
-		next_thread->weight += .5;
+		if (currentthread->weight < 1){
+			currentthread->weight = 1;
+		}
 		starttime(2); //run for longer
 		if (swapcontext(&(current->thread_block->context), 
 		&(next_thread->thread_block->context)) == -1 ){
@@ -455,11 +462,11 @@ void scheduler(int signum){
 	}
 	else if (quantum3->head != NULL){
 		current = currentthread;
-		next_thread = dequeue(quantum1);
+		next_thread = dequeue(quantum3);
 		currentthread = next_thread;
-		next_thread->weight += .5;
-		if (next_thread->weight > 1)
-			next_thread->weight = 1;
+		if (currentthread->weight < 6){
+			currentthread->weight = 6;
+		}
 		starttime(5); //longest a thread can run for
 		if (swapcontext(&(current->thread_block->context), 
 		&(next_thread->thread_block->context)) == -1 ){
@@ -468,8 +475,18 @@ void scheduler(int signum){
 	}
 	else {
 		//nothing to schedule :(
+		releaseWait();
 	}
 	starttime(1);
+}
+
+//release everything fromt he waitqueue
+void releaseWait(){
+	t_node* temp;
+	for (temp = wait_queue->head; temp != NULL; temp = temp->next){
+		temp = dequeue(wait_queue);
+		enqueue(quantum1, temp);
+	}
 }
 
 /* create a new thread */
@@ -576,6 +593,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
 
 	mutex->locked=0;
 	mutex->holder=0;
+	releaseWait();
 	starttime(1);
 
 	return 0;

@@ -35,7 +35,7 @@ typedef struct threadControlBlock {
 
 typedef struct t_node{
 	//weight and time values for priority queue and scan function
-	float weight;
+	uint64_t weight;
 	uint64_t time;
 	tcb* thread_block;
 	struct t_node* next;
