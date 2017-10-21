@@ -75,7 +75,7 @@ void initThreadLib(){
 	mainthread = createT_node(newtcb);
 	currentthread = mainthread;
 	
-	starttime(1);
+	starttime(10);
 }
 
 /*priority queue methods*/
@@ -351,8 +351,7 @@ void scan(){
 			temp->weight -= mod;
 		}
 		else {
-			if (temp->weight >= 1)
-				temp->weight -= 1;
+			temp->weight = 0;
 		}
 	}
 	//perform merge sort on queue
@@ -366,8 +365,7 @@ void scan(){
 			temp->weight -= mod;
 		}
 		else {
-			if (temp->weight >= 1)
-				temp->weight -= 1;
+			temp->weight = 0;
 		}
 	}
 	mergeSort(&queue->head);
@@ -377,7 +375,7 @@ void scheduler(int signum){
 	stoptime();
 	//scan all queues to adjust priority
 	scan();
-	printf("cthread weight: %d\n", currentthread->weight);
+	//printf("cthread weight: %d\n", currentthread->weight);
 
 	if (signum == 1){
 		enqueue(wait_queue, currentthread);
@@ -389,15 +387,15 @@ void scheduler(int signum){
 		if (currentthread->weight > 10)
 			currentthread->weight = 10;
 		if (currentthread->weight > 5){
-			printf("enqueuing: 0x%" PRIXPTR " in quantum 3\n", currentthread);
+			//printf("enqueuing: 0x%" PRIXPTR " in quantum 3\n", currentthread);
 			enqueue(quantum3, currentthread);
 		}
 		else if (currentthread->weight > 0){
-			printf("enqueuing: 0x%" PRIXPTR "in quantum 2\n", currentthread);
+			//printf("enqueuing: 0x%" PRIXPTR "in quantum 2\n", currentthread);
 			enqueue(quantum2, currentthread);
 		}
 		else{
-			printf("enqueuing: 0x%" PRIXPTR "in quantum 1\n", currentthread);
+			//printf("enqueuing: 0x%" PRIXPTR "in quantum 1\n", currentthread);
 			enqueue(quantum1, currentthread);
 		}
 	}
@@ -414,10 +412,10 @@ void scheduler(int signum){
 		//run this thread it has been waiting for a while
 		current = currentthread;
 		next_thread = dequeue(quantum3);
-		printf("dequeuing from q3 first!: 0x%" PRIXPTR "\n", next_thread);
+		//printf("dequeuing from q3 first!: 0x%" PRIXPTR "\n", next_thread);
 		currentthread = next_thread;
 		currentthread->weight = 6;
-		starttime(5);
+		starttime(125);
 		if (swapcontext(&(current->thread_block->context), 
 			&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n");
@@ -426,10 +424,10 @@ void scheduler(int signum){
 	else if (quantum2->head != NULL && quantum2->head->weight <= 1){
 		current = currentthread;
 		next_thread = dequeue(quantum3);
-		printf("dequeuing from q2 first!: 0x%" PRIXPTR "\n", next_thread);
+		//printf("dequeuing from q2 first!: 0x%" PRIXPTR "\n", next_thread);
 		currentthread = next_thread;
 		currentthread->weight = 1;
-		starttime(5);
+		starttime(50);
 		if (swapcontext(&(current->thread_block->context), 
 			&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n");
@@ -439,9 +437,9 @@ void scheduler(int signum){
 		//standard run queue
 		current = currentthread;
 		next_thread = dequeue(quantum1);
-		printf("next_thread: 0x%" PRIXPTR "\n", next_thread);
+		//printf("next_thread: 0x%" PRIXPTR "\n", next_thread);
 		currentthread = next_thread;
-		starttime(1);
+		starttime(25);
 		if (swapcontext(&(current->thread_block->context), 
 			&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n");
@@ -454,7 +452,7 @@ void scheduler(int signum){
 		if (currentthread->weight < 1){
 			currentthread->weight = 1;
 		}
-		starttime(2); //run for longer
+		starttime(50); //run for longer
 		if (swapcontext(&(current->thread_block->context), 
 		&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n"); 
@@ -467,7 +465,7 @@ void scheduler(int signum){
 		if (currentthread->weight < 6){
 			currentthread->weight = 6;
 		}
-		starttime(5); //longest a thread can run for
+		starttime(125); //longest a thread can run for
 		if (swapcontext(&(current->thread_block->context), 
 		&(next_thread->thread_block->context)) == -1 ){
 			printf("Error while swap context\n");
@@ -477,7 +475,7 @@ void scheduler(int signum){
 		//nothing to schedule :(
 		releaseWait();
 	}
-	starttime(1);
+	starttime(10); //check back in 10us
 }
 
 //release everything fromt he waitqueue
@@ -512,7 +510,6 @@ int my_pthread_create(my_pthread_t* thread, pthread_attr_t* attr, void *(*functi
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield(){
 	stoptime();
-	starttime(1);
 	scheduler(1);
 	return 0;
 };
@@ -562,7 +559,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t* mutex, const pthread_mutexattr_t* 
 
 	mutex->locked = 0;
 	mutex->holder = 0;
-	starttime(1);
+	starttime(10);
 	return 0;
 };
 
@@ -578,7 +575,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t* mutex){
 	
 	mutex->locked = 1;
 	mutex->holder = currentthread->thread_block->tid; // must be assigned to my_pthread_t of current thread
-	starttime(1);
+	starttime(10);
 	return 0;
 };
 
@@ -587,14 +584,14 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t* mutex){
 	
 	stoptime();
 	if(mutex == NULL || mutex->holder == currentthread->thread_block->tid){ // must compare to my_pthread_t of current thread
-		starttime(1);
+		starttime(10);
 		return(-1); // failed, mutex is not initialized
 	}
 
 	mutex->locked=0;
 	mutex->holder=0;
 	releaseWait();
-	starttime(1);
+	starttime(10);
 
 	return 0;
 };
@@ -604,15 +601,15 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
 	
 	stoptime();
 	if(mutex==NULL || mutex->locked!=0){
-		starttime(1);
+		starttime(10);
 		return(-1); // failed, mutex is not initialized or is in use
 	}
 
 	free(mutex);
-	starttime(1);
+	starttime(10);
 	return 0;
 };
-
+/*
 void* testfuc2(void* a){
 	int i = 0;
 	while (i < 10000000){
@@ -643,4 +640,4 @@ int main(){
 	}; //busy work
 	return 0;
 }
-
+*/
