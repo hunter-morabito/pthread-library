@@ -85,7 +85,7 @@ void stoptime();
 void initThreadLib();
 void runThread(void* (*func)(void*), void* arg);
 int remove_from_queue(my_pthread_t thread);
-//int searchThread(my_pthread_t pid);
+void releaseWait();
 
 /* Function Declarations: */
 void interrupt_handler();

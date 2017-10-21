@@ -380,7 +380,7 @@ void scheduler(int signum){
 	printf("cthread weight: %d\n", currentthread->weight);
 
 	if (signum == 1){
-		enqueue(currentthread, wait_queue);
+		enqueue(wait_queue, currentthread);
 	}
 	else if (!cancel && currentthread != NULL){
 		//enqueue back into quantum1 for now
