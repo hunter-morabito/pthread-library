@@ -1,0 +1,48 @@
+#include"malloc.h"
+#include<stdbool.h>
+#define MEMSIZE 8000000
+
+static Header base;/*empty list*/
+static Header *freep = NULL; /*start of free list*/
+
+static char memblock[MEMSIZE];//Big Block of Memory
+
+void printError(char *description, char *file, size_t line)
+{
+	printf("\033[31m ERROR: \033[0m %s in %s:%zu\n", description, file, line);
+}
+
+void *myallocate(size_t nbytes, char *file, size_t line)
+{
+	if((int)nbytes <= 0){
+		printError("Attempted to request invalid amount of memory", file, line);
+		return 0;
+	}
+
+	Header *p;
+	Header *prevp;
+	size_t nunits;
+	void* result;
+	bool is_allocating;
+
+	nunits = (nbytes+sizeof(Header) - 1)/sizeof(Header) + 1;
+
+	prevp = freep;
+	if(prevp  == NULL){			/*no free list yet*/
+		base.s.ptr = &base;		/*init pointers to beginning of list*/
+		freep = &base;
+		prevp = &base;
+		Header *newP;
+		newP = (Header*)memblock;
+					
+	}
+	
+	
+}
+
+int main(int argc, char **argv)
+{
+	int *b = (int*)malloc(0);	
+	return 0;
+
+}
