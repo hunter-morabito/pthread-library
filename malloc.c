@@ -7,6 +7,7 @@ struct MemEntry
 	struct MemEntry *prev, *next;
 	int isfree;		// 1 - yes, 0 - no
 	int size;
+	int ownerTread;
 };
 
 
@@ -29,10 +30,10 @@ void* myallocate(size_t size, char *file, size_t line, unsigned int requester)
 	static int initialized = 0;
 	struct MemEntry *p;
 	struct MemEntry *next;
-	static struct MemEntry *root;
-	
-	if (size == 0) {
-		fprintf(stderr, "Unable to allocate 0 bytes in FILE: '%s' on LINE: \n", file);
+	static struct MemEntry *root;	
+
+	if (size == 0 || size > sysconf(_SC_PAGE_SIZE)) {
+		fprintf(stderr, "Unable to allocate this many bytes in FILE: '%s' on LINE: \n", file);
 		return 0;
 	}
 
@@ -136,8 +137,10 @@ void mydeallocate(void *p, char *file, size_t line, unsigned int requester)
 	}
 }
 
+
+
 int main(){
-	int* a = (int*)malloc(1000);
+	int* a = (int*)malloc(400);
 	int* b = (int*)malloc(10);
 	free(b);
 	free(a);
