@@ -12,14 +12,26 @@ struct MemEntry
 
 
 static char memblock[MEMSIZE]; //big block of memory space
-static const int entriesSize = MEMSIZE/sizeof(struct MemEntry)+1; //size of memEntries
-static void *memEntries[MEMSIZE/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
+static const int entriesSize = (MEMSIZE - (4*4096))/sizeof(struct MemEntry)+1; //size of memEntries
+static void *memEntries[(MEMSIZE - (4*4096))/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
+
+static const int sEntriesSize = (4*4096)/sizeof(struct MemEntry)+1; //size of memEntries
+static void *sMemEntries[(4*4096)/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
 
 // return the first occurance of an index not containing a memEntry
 static int getFreeIndex() {
 	int i;
 	for (i = 0; i < entriesSize; i++)
 		if (memEntries[i] == 0) 
+			return i;
+	return 1; //should never reach here but 0 is always set as root
+}
+
+// return the first occurance of an index not containing a memEntry
+static int sGetFreeIndex() {
+	int i;
+	for (i = 0; i < sEntriesSize; i++)
+		if (sMemEntries[i] == 0) 
 			return i;
 	return 1; //should never reach here but 0 is always set as root
 }
@@ -32,8 +44,8 @@ void* myallocate(size_t size, char *file, size_t line, unsigned int requester)
 	struct MemEntry *next;
 	static struct MemEntry *root;	
 
-	if (size == 0 || size > sysconf(_SC_PAGE_SIZE)) {
-		fprintf(stderr, "Unable to allocate this many bytes in FILE: '%s' on LINE: \n", file);
+	if (size == 0 || size > 4096) {
+		fprintf(stderr, "Unable to allocate this many bytes in FILE: '%s' on LINE: %zu\n", file, line);
 		return 0;
 	}
 
@@ -42,7 +54,7 @@ void* myallocate(size_t size, char *file, size_t line, unsigned int requester)
 		// create a root chunk at the beginning of the memory block
 		root = (struct MemEntry*) memblock;
 		root->prev = root->next = 0;
-		root->size = MEMSIZE - sizeof(struct MemEntry);
+		root->size = MEMSIZE - (4*4096) - sizeof(struct MemEntry);
 		root->isfree = 1;
 		initialized = 1;
 		memEntries[getFreeIndex()] = memblock;
@@ -78,8 +90,8 @@ void* myallocate(size_t size, char *file, size_t line, unsigned int requester)
 		}
 	} while (p != 0);
 
-	fprintf(stderr, "Insufficient memory space requested (bytes) in FILE: '%s' on LINE: \n", file);
-	return 0;
+	fprintf(stderr, "Insufficient memory space requested (bytes) in FILE: '%s' on LINE: %zu\n", file, line);
+	return NULL;
 }
 
 // free a memory buffer pointed to by p
@@ -90,7 +102,7 @@ void mydeallocate(void *p, char *file, size_t line, unsigned int requester)
 	struct MemEntry *next;
 
 	if (p == NULL) {
-		fprintf(stderr, "Pointer is NULL in file, free failed in FILE: '%s' on LINE: \n", file);
+		fprintf(stderr, "Pointer is NULL in file, free failed in FILE: '%s' on LINE: %zu\n", file, line);
 		return;
 	}
 
@@ -105,10 +117,21 @@ void mydeallocate(void *p, char *file, size_t line, unsigned int requester)
 			break;
 		}
 	}
+
 	if (!valid) {
-		fprintf(stderr, "Attempting to free memory that was not malloced in FILE: '%s' on LINE: \n", file);
-		return;
+
+		for (i = 0; i < sEntriesSize; i++) {
+			if (ptr == sMemEntries[i] && !ptr->isfree) {
+				valid = 1; //memEntry is valid
+				break;
+			}
+		}
+		if (!valid) {	
+			fprintf(stderr, "Attempting to free memory that was not malloced in FILE: '%s' on LINE: %zu\n", file, line);
+			return;
+		}
 	}
+
 
 	if((prev = ptr->prev) != 0 && prev->isfree)
 	{
@@ -138,11 +161,73 @@ void mydeallocate(void *p, char *file, size_t line, unsigned int requester)
 }
 
 
+void* shalloc(size_t size)
+{
+	static int sInit = 0;
+	struct MemEntry *p;
+	struct MemEntry *next;
+	static struct MemEntry *sRoot;	
+
+	if(!sInit)	// 1st time called
+	{
+		// create a root chunk at the beginning of the memory block
+		char* startOfShared = &memblock[MEMSIZE-(4*4096)];
+		sRoot = (struct MemEntry*) (startOfShared);
+		sRoot->prev = sRoot->next = 0;
+		sRoot->size = (4*4096) - sizeof(struct MemEntry);
+		sRoot->isfree = 1;
+		sInit = 1;
+		sMemEntries[sGetFreeIndex()] = startOfShared;
+	}
+
+	p = sRoot;
+	do
+	{
+		if(p->size < size || !p->isfree) {
+			// the current chunk is smaller, go to the next chunk
+			// or this chunk was taken, go to the next
+			p = p->next;
+		}
+		else if(p->size < (size + sizeof(struct MemEntry))) {
+			// this chunk is free and large enough to hold data, 
+			// but there's not enough memory to hold the HEADER of the next chunk
+			// don't create any more chunks after this one
+			p->isfree = 0;
+			return (char*)p + sizeof(struct MemEntry);
+		}
+		else {
+			// take the needed memory and create the header of the next chunk
+			next = (struct MemEntry*)((char*)p + sizeof(struct MemEntry) + size);
+			next->prev = p;
+			next->next = p->next;
+			next->size = p->size - sizeof(struct MemEntry) - size;
+			next->isfree = 1;
+			sMemEntries[sGetFreeIndex()] = next;
+			p->size = size;
+			p->isfree = 0;
+			p->next = next;
+			return (char*)p + sizeof(struct MemEntry);
+		}
+	} while (p != 0);
+
+	//fprintf(stderr, "Insufficient memory space requested (bytes) in FILE: '%s' on LINE: %d\n", __FILE__, __LINE__);
+	return NULL;
+}
+
 
 int main(){
-	int* a = (int*)malloc(400);
+	/*int* a = (int*)malloc(400);
 	int* b = (int*)malloc(10);
+	char* x = (char*)shalloc(6);
+	printf("start of lines that break:\n");
+	char* y = (char*)shalloc(50000);
+	char* z = (char*)malloc(MEMSIZE-6000);
+	char* q = 5;
 	free(b);
 	free(a);
+	free(x);
+	free(y);
+	free(z);
+	free(q);*/
 	return 0;
 }
