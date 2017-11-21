@@ -13,6 +13,7 @@
 
 static int getFreeIndex();
 static int sGetFreeIndex();
+void mallocInit();
 void *myallocate(size_t size, char *file, size_t line, unsigned int requester);
 void mydeallocate(void* ptr, char * file, size_t line, unsigned int requester);
 void* shalloc(size_t size);
