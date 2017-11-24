@@ -40,26 +40,6 @@ static char memblock[MEMSIZE]; //big block of memory space
 //static void * validAddresses[MEMSIZE/sizeof(struct(MemEntry)) + 1];
 static const int sEntriesSize = (4*4096)/sizeof(struct MemEntry)+1; //size of memEntries
 static void *sMemEntries[(4*4096)/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
-/*
-// return the first occurance of an index not containing a memEntry
-static int getFreeIndex() {
-	int i;
-	for (i = 0; i < entriesSize; i++)
-		if (memEntries[i] == 0) {
-			//printf("returning: %d\n", i);
-			return i;
-		}
-	return 1; //should never reach here but 0 is always set as root
-}
-
-// return the first occurance of an index not containing a memEntry
-static int sGetFreeIndex() {
-	int i;
-	for (i = 0; i < sEntriesSize; i++)
-		if (sMemEntries[i] == 0) 
-			return i;
-	return 1; //should never reach here but 0 is always set as root
-}*/
 
 //should have a separate function for intializing
 void mallocInit() {
@@ -252,12 +232,8 @@ int main(){
 	int* a = (int*)malloc(400);
 	int* b = (int*)malloc(10);
 	int* c = (int *)malloc(30);
-	//free(b);
-	//free(a);
-	//free(x);
 	a[0] = 5;
 	b[0]= 20;
-	//x[0] = 'a';
 	c[0] = 70;
 
 	printf("Page: %lu MemEntry: %lu\n", sizeof(struct Page), sizeof(struct MemEntry));
@@ -275,10 +251,5 @@ int main(){
 	f[0] = 1024;
 	printf("f: %d\n", f[0]); //24 + 32 + 20 + 32
 
-
-
-	//free(y);
-	//free(z);
-	//free(q);
 	return 0;
 }
