@@ -40,9 +40,13 @@ void initThreadLib(){
 		printf("Error while getting context...exiting\n");
 		exit(EXIT_FAILURE);
 	}
+
+	tcb maintcb = {.tid = 0, .context = maincontext}
+	t_node maint = {.thread_block = &maintcb, .next = NULL, .weight = 0, .time = getTimeStamp()}
 	
-	tcb* newtcb = createTCB(1);
-	mainthread = createT_node(newtcb);
+	// tcb* newtcb = createTCB(1);
+	// mainthread = createT_node(newtcb);
+	mainthread = &maint;
 	currentthread = mainthread;
 
 	//initialize queues
