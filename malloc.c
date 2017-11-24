@@ -4,23 +4,6 @@
 #define MEMSIZE 8000000
 
 typedef unsigned char bool;
-/*
-struct MemEntry
-{
-	struct MemEntry *prev, *next;
-	int isfree;		// 1 - yes, 0 - no
-	int size;
-	uint ownerTread;
-};
-
-
-static char memblock[MEMSIZE]; //big block of memory space
-static const int entriesSize = (MEMSIZE - (4*4096))/sizeof(struct MemEntry)+1; //size of memEntries
-static void *memEntries[(MEMSIZE - (4*4096))/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
-
-static const int sEntriesSize = (4*4096)/sizeof(struct MemEntry)+1; //size of memEntries
-static void *sMemEntries[(4*4096)/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
-*/
 
 //this overhead is ~24 bytes
 struct Page {
@@ -37,9 +20,6 @@ struct MemEntry {
 };
 
 static char memblock[MEMSIZE]; //big block of memory space
-//static void * validAddresses[MEMSIZE/sizeof(struct(MemEntry)) + 1];
-static const int sEntriesSize = (4*4096)/sizeof(struct MemEntry)+1; //size of memEntries
-static void *sMemEntries[(4*4096)/sizeof(struct MemEntry)+1] = {0}; //pointers to memEntries
 
 //should have a separate function for intializing
 void mallocInit() {
