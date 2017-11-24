@@ -4,13 +4,13 @@ AR = ar -rc
 RANLIB = ranlib
 
 
-Target: create
+Target: all
 
-my_pthread.o: my_pthread.c
+my_pthread.o: my_pthread.h my_pthread.c
 	$(CC) $(CFLAGS) my_pthread.c
 
-malloc.o: malloc.c
+malloc.o: malloc.h malloc.c
 	$(CC) $(CFLAGS) malloc.c
 
-create: malloc.o, my_pthread.o
+all: malloc.o my_pthread.o
 	$(CC) -g malloc.o my_pthread.c -o mallocandpthread
