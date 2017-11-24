@@ -41,8 +41,8 @@ void initThreadLib(){
 		exit(EXIT_FAILURE);
 	}
 
-	tcb maintcb = {.tid = 0, .context = maincontext}
-	t_node maint = {.thread_block = &maintcb, .next = NULL, .weight = 0, .time = getTimeStamp()}
+	tcb maintcb = {.tid = 0, .context = maincontext};
+	t_node maint = {.thread_block = &maintcb, .next = NULL, .weight = 0, .time = getTimeStamp()};
 	
 	// tcb* newtcb = createTCB(1);
 	// mainthread = createT_node(newtcb);
