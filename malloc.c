@@ -226,7 +226,7 @@ void* shalloc(size_t size)
 	return NULL;
 }*/
 
-
+/*
 int main(){
 	mallocInit();
 	int* a = (int*)malloc(400);
@@ -252,4 +252,4 @@ int main(){
 	printf("f: %d\n", f[0]); //24 + 32 + 20 + 32
 
 	return 0;
-}
+}*/

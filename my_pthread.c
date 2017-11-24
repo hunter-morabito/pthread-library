@@ -6,7 +6,7 @@
 // username of iLab: hjm67
 // iLab Server: utility.cs.rutgers.edu
 #include "my_pthread_t.h"
-//#include "malloc.h"
+#include "malloc.h"
 #include <stdio.h>
 #include <sys/ucontext.h>
 #include <sys/time.h>
@@ -29,6 +29,7 @@ static int count = 0;
 short cancel = 0; //when a thread should be canceled make this 1
 
 void initThreadLib(){
+	mallocInit();
 	if ( getcontext(&maincontext)== -1) {
 		printf("Error while getting context...exiting\n");
 		exit(EXIT_FAILURE);
