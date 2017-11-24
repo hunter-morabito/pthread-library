@@ -166,56 +166,46 @@ void* shalloc(size_t size) {
 	int i = MEMSIZE - (4*4096);
 	for (; i < MEMSIZE; i += 4096) {
 		struct Page * pageptr = (struct Page*)(memblock + i);
-		if (pageptr->isfree) {
-			if (pageptr->freeSpace >= size) {
-				struct MemEntry * memptr = (struct MemEntry *)(memblock + i + sizeof(struct Page)); //you see the static location used here again
-				//this will iterate over every MemEntry in the Page
-
-
-				for (; memptr != NULL; memptr = memptr->next) {
-					if (memptr->isfree && memptr->size >= size) { //need to check if the entire page is free first
-						if (pageptr->isfree){
-							pageptr->ownerTread = 0;
-							pageptr->isfree = 0;
-						}
-						pageptr->freeSpace -= size;
-						if (pageptr->freeSpace < sizeof(struct MemEntry)) {
-							memptr->next = NULL; //no room left for overhead just point it to NULL
-						}
-						else if (memptr->next != NULL) { //this is compilcated as we are checking the space in between two memory allocations now
-							size_t freeSize = memptr->size - size;
-							if (freeSize <= sizeof(struct MemEntry)) { //not enough space in between entries to create an overhead just allocate the rest of the space to this entry
-								pageptr->freeSpace -= freeSize;
-							}
-							else {
-								struct MemEntry * memptr_next = memptr->next;
-								memptr->next = (struct MemEntry *)((char *)memptr + sizeof(struct MemEntry) + size); //create overhead for next memory entry and point to it
-								memptr->next->isfree = 1;
-								memptr->next->size = memptr->size - size - sizeof(struct MemEntry);
-								memptr->next->prev = memptr;
-								memptr->next->next = memptr_next;
-								memptr_next->prev = memptr->next;
-								pageptr->freeSpace -= sizeof(struct MemEntry);
-							}
-						}
-						else { //in order to get an accurate representation of what free space is left we need to find how much space is left until we reach the next page
-							memptr->next = (struct MemEntry *)((char *)memptr + sizeof(struct MemEntry) + size);
-							uintptr_t nextpageadr = (uintptr_t)(pageptr + 4096);
-							uintptr_t nextmemptr = (uintptr_t)(memptr->next + sizeof(struct MemEntry));
-							uintptr_t diff = nextpageadr - nextmemptr;
-							memptr->next->isfree = 1;
-							pageptr->freeSpace -= sizeof(struct MemEntry);
-							memptr->next->size = (unsigned int)diff;
-							memptr->next->prev = memptr;
-							memptr->next->next = NULL;
-						}
-						memptr->size = size;
-						memptr->isfree = 0;
-						return (char *)memptr + sizeof(struct MemEntry);
+		if (pageptr->freeSpace >= size) {
+			struct MemEntry * memptr = (struct MemEntry *)(memblock + i + sizeof(struct Page)); //you see the static location used here again
+			//this will iterate over every MemEntry in the Page
+			for (; memptr != NULL; memptr = memptr->next) {
+				if (memptr->isfree && memptr->size >= size) { //need to check if the entire page is free first
+					pageptr->freeSpace -= size;
+					if (pageptr->freeSpace < sizeof(struct MemEntry)) {
+						memptr->next = NULL; //no room left for overhead just point it to NULL
 					}
+					else if (memptr->next != NULL) { //this is compilcated as we are checking the space in between two memory allocations now
+						size_t freeSize = memptr->size - size;
+						if (freeSize <= sizeof(struct MemEntry)) { //not enough space in between entries to create an overhead just allocate the rest of the space to this entry
+							pageptr->freeSpace -= freeSize;
+						}
+						else {
+							struct MemEntry * memptr_next = memptr->next;
+							memptr->next = (struct MemEntry *)((char *)memptr + sizeof(struct MemEntry) + size); //create overhead for next memory entry and point to it
+							memptr->next->isfree = 1;
+							memptr->next->size = memptr->size - size - sizeof(struct MemEntry);
+							memptr->next->prev = memptr;
+							memptr->next->next = memptr_next;
+							memptr_next->prev = memptr->next;
+							pageptr->freeSpace -= sizeof(struct MemEntry);
+						}
+					}
+					else { //in order to get an accurate representation of what free space is left we need to find how much space is left until we reach the next page
+						memptr->next = (struct MemEntry *)((char *)memptr + sizeof(struct MemEntry) + size);
+						uintptr_t nextpageadr = (uintptr_t)(pageptr + 4096);
+						uintptr_t nextmemptr = (uintptr_t)(memptr->next + sizeof(struct MemEntry));
+						uintptr_t diff = nextpageadr - nextmemptr;
+						memptr->next->isfree = 1;
+						pageptr->freeSpace -= sizeof(struct MemEntry);
+						memptr->next->size = (unsigned int)diff;
+						memptr->next->prev = memptr;
+						memptr->next->next = NULL;
+					}
+					memptr->size = size;
+					memptr->isfree = 0;
+					return (char *)memptr + sizeof(struct MemEntry);
 				}
-
-
 			}
 		}
 	}
