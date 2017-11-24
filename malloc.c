@@ -224,7 +224,7 @@ void* shalloc(size_t size) {
 	return NULL;
 }
 
-
+/*
 int main(){
 	mallocInit();
 	int* a = (int*)malloc(400);
@@ -255,4 +255,4 @@ int main(){
 	free(c);
 	free(c);
 	return 0;
-}
+}*/
