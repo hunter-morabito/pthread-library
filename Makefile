@@ -1,17 +1,16 @@
 CC = gcc
-CFLAGS = -g -c
+CFLAGS = -g -c -std=c99
 AR = ar -rc
 RANLIB = ranlib
 
 
-Target: my_pthread.a
+Target: my_pthread.c
 
-my_pthread.a: my_pthread.o
-	$(AR) libmy_pthread.a my_pthread.o
-	$(RANLIB) libmy_pthread.a
+my_pthread.o:
+	$(CC) $(CFLAGS) my_pthread.c
 
-my_pthread.o: my_pthread_t.h
-	$(CC) -pthread $(CFLAGS) my_pthread.c
+malloc.o:
+	$(CC) $(CFLAGS) malloc.c
 
-clean:
-	rm -rf testfile *.o *.a
+my_pthread.c:
+	$(CC) $(CFLAGS) malloc.o my_pthread.c -o mallocandpthread
