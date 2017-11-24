@@ -15,6 +15,12 @@
 #include <inttypes.h>
 #include <string.h>
 
+#define THREADREQ currentthread->thread_block->tid
+#define LIBRARYREQ 0
+
+#define malloc(x) 	myallocate(x, __FILE__, __LINE__,THREADREQ)
+#define free(x)		mydeallocate(x, __FILE__, __LINE__,THREADREQ)
+
 ucontext_t maincontext;
 /* quantum1 will have all weights at 0
 *  quantum2 will have 1 - 5
@@ -35,7 +41,7 @@ void initThreadLib(){
 		exit(EXIT_FAILURE);
 	}
 	
-	tcb* newtcb = createTCB(0);
+	tcb* newtcb = createTCB(1);
 	mainthread = createT_node(newtcb);
 	currentthread = mainthread;
 
