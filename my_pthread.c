@@ -6,7 +6,7 @@
 // username of iLab: hjm67
 // iLab Server: utility.cs.rutgers.edu
 #include "my_pthread_t.h"
-#include "malloc.h"
+//#include "malloc.h"
 #include <stdio.h>
 #include <sys/ucontext.h>
 #include <sys/time.h>
@@ -34,7 +34,7 @@ void initThreadLib(){
 		exit(EXIT_FAILURE);
 	}
 	
-	tcb* newtcb = createTCB(1);
+	tcb* newtcb = createTCB(0);
 	mainthread = createT_node(newtcb);
 	currentthread = mainthread;
 
