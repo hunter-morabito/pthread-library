@@ -1,7 +1,10 @@
 #include "malloc.h"
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
-#define MEMSIZE 8000000
+#define MEMSIZE 8388608
+#define SWAP_FILE "SWAP"
 
 typedef unsigned char bool;
 
@@ -101,8 +104,51 @@ void * myallocate(size_t size, char *file, size_t line, unsigned int requester) 
 		}
 	}
 
-	fprintf(stderr, "Insufficient memory space requested (bytes) in FILE: '%s' on LINE: %zu\n", file, line);
-	return NULL;
+	//Swap out a page of memory
+	FILE *fp;
+	fp = fopen(SWAP_FILE, "w");
+	//copy the first four pages of memory out to the SWAP file for now
+	char copymemblock[16384];
+	(char *)memcpy(&copymemblock, &memblock, 16384);
+
+	fwrite(copymemblock, 16384, sizeof(char), fp);
+
+	struct Page * temp;
+	struct MemEntry * firstEntry;
+	for (int i = 0; i < 16384; i += 4096) {
+		temp = (struct Page*)(memblock + i);
+		temp->isfree = 1;
+		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
+		temp->ownerTread = 0;
+		firstEntry = (struct MemEntry *)(memblock + i + sizeof(struct Page)); //static location of first mementry
+		firstEntry->isfree = 1;
+		firstEntry->size = temp->freeSpace;
+		firstEntry->next = NULL;
+		firstEntry->prev = NULL;
+	}
+
+	return malloc(size);
+
+	//fprintf(stderr, "Insufficient memory space requested (bytes) in FILE: '%s' on LINE: %zu\n", file, line);
+	//return NULL;
+}
+
+//artificially fills memory for testing purposes only
+void fillMem() {
+	static struct Page * temp;
+	static struct MemEntry * firstEntry;
+	int i = 0;
+	for (; i < MEMSIZE - (5*4096); i += 4096){
+		temp = (struct Page*)(memblock + i);
+		temp->isfree = 0;
+		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
+		temp->ownerTread = 25565;
+		firstEntry = (struct MemEntry *)(memblock + i + sizeof(struct Page)); //static location of first mementry
+		firstEntry->isfree = 0;
+		firstEntry->size = temp->freeSpace;
+		firstEntry->next = NULL;
+		firstEntry->prev = NULL;
+	}
 }
 
 // free a memory buffer pointed to by p
@@ -239,10 +285,16 @@ int main(){
 	f[0] = 1024;
 	printf("f: %d\n", f[0]); //24 + 32 + 20 + 32
 
-
 	free(a);
 	free(b);
 	free(c);
 	free(c);
+
+	fillMem();
+	int* z = (int*)malloc(1000);
+	z[0] = 10;
+	printf("z: %d\n", z[0]);
+	printf("d: %d\n", d[0]);
+
 	return 0;
 }*/

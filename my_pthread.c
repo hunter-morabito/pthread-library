@@ -43,8 +43,6 @@ void initThreadLib(){
 
 	tcb maintcb = {.tid = 0, .context = maincontext};
 	t_node maint = {.thread_block = &maintcb, .next = NULL, .weight = 0, .time = getTimeStamp()};
-
-	printf("SIGSTKSIZE: %d\n", SIGSTKSZ);
 	
 	// tcb* newtcb = createTCB(1);
 	// mainthread = createT_node(newtcb);
@@ -101,7 +99,7 @@ uint64_t getTimeStamp(){
 
 struct t_node* createT_node(tcb* threadblock){
 	//create new threadNode
-	struct t_node* newNode = (struct t_node*)malloc(sizeof(struct t_node));
+	struct t_node* newNode = (struct t_node*)calloc(1, sizeof(struct t_node));
 	if (newNode == NULL){
 		printf("memory allocation error");
 		return NULL;
@@ -120,7 +118,7 @@ struct t_node* createT_node(tcb* threadblock){
 
 struct pt_queue* createPt_queue(){
 	//allocate memory
-	struct pt_queue* queue = (struct pt_queue*)malloc(sizeof(struct pt_queue));
+	struct pt_queue* queue = (struct pt_queue*)calloc(1, sizeof(struct pt_queue));
 	if (queue == NULL){
 		printf("memory allocation error");
 		return NULL;
@@ -134,7 +132,7 @@ struct pt_queue* createPt_queue(){
 }
 
 struct threadControlBlock* createTCB(my_pthread_t pid){
-	tcb * newTCB = (tcb *)malloc(sizeof(tcb));
+	tcb * newTCB = (tcb *)calloc(1, sizeof(tcb));
 	if (newTCB == NULL){
 		printf("memory allocation error");
 		return NULL;
@@ -145,7 +143,7 @@ struct threadControlBlock* createTCB(my_pthread_t pid){
 	}
 	newTCB->tid = pid;
 	newTCB->context.uc_link = &maincontext;
-	newTCB->context.uc_stack.ss_sp = malloc(SIGSTKSZ);
+	newTCB->context.uc_stack.ss_sp = calloc(1, SIGSTKSZ);
 	newTCB->context.uc_stack.ss_size = SIGSTKSZ;
 	return newTCB;
 }
@@ -564,7 +562,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t* mutex, const pthread_mutexattr_t* 
 		return(-1); // failed, mutex is already initialized
 
 	stoptime();
-	mutex = (my_pthread_mutex_t*)malloc(sizeof(my_pthread_mutex_t));
+	mutex = (my_pthread_mutex_t*)calloc(1, sizeof(my_pthread_mutex_t));
 	if(mutex == NULL){
 		printf("memory allocation error");
 		starttime(10);
