@@ -13,4 +13,4 @@ malloc.o:
 	$(CC) $(CFLAGS) malloc.c
 
 my_pthread.c:
-	$(CC) $(CFLAGS) malloc.o my_pthread.c -o mallocandpthread
+	$(CC) -g malloc.o my_pthread.c -o mallocandpthread
