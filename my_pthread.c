@@ -43,6 +43,8 @@ void initThreadLib(){
 
 	tcb maintcb = {.tid = 0, .context = maincontext};
 	t_node maint = {.thread_block = &maintcb, .next = NULL, .weight = 0, .time = getTimeStamp()};
+
+	printf("SIGSTKSIZE: %d\n", SIGSTKSIZE);
 	
 	// tcb* newtcb = createTCB(1);
 	// mainthread = createT_node(newtcb);
