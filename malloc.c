@@ -30,7 +30,7 @@ void mallocInit() {
 	static struct MemEntry * firstEntry;
 	//create EVERY page and FIRST mementry overhead
 	int i = 0;
-	for (; i < MEMSIZE - (5*4096); i += 4096){
+	for (; i < MEMSIZE - (4*4096); i += 4096){
 		temp = (struct Page*)(memblock + i);
 		temp->isfree = 1;
 		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
@@ -52,7 +52,7 @@ void * myallocate(size_t size, char *file, size_t line, unsigned int requester) 
 
 	//this will iterate over every page
 	int i = 0;
-	for (; i < MEMSIZE - (5*4096); i += 4096) {
+	for (; i < MEMSIZE - (4*4096); i += 4096) {
 		struct Page * pageptr = (struct Page*)(memblock + i);
 		if (pageptr->ownerTread == requester || pageptr->isfree) {
 			if (pageptr->freeSpace >= size) {
@@ -138,7 +138,7 @@ void fillMem() {
 	static struct Page * temp;
 	static struct MemEntry * firstEntry;
 	int i = 0;
-	for (; i < MEMSIZE - (5*4096); i += 4096){
+	for (; i < MEMSIZE - (4*4096); i += 4096){
 		temp = (struct Page*)(memblock + i);
 		temp->isfree = 0;
 		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
