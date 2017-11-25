@@ -6,11 +6,11 @@
 #include<unistd.h>
 
 
-#define THREADREQ 0
-#define LIBRARYREQ 1
+//#define THREADREQ 0
+//#define LIBRARYREQ 1
 
-#define malloc(x) 	myallocate(x, __FILE__, __LINE__,THREADREQ)
-#define free(x)		mydeallocate(x, __FILE__, __LINE__,THREADREQ)
+//#define malloc(x) 	myallocate(x, __FILE__, __LINE__,THREADREQ)
+//#define free(x)		mydeallocate(x, __FILE__, __LINE__,THREADREQ)
 
 
 static int getFreeIndex();
