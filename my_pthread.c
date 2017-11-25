@@ -622,7 +622,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
 	return 0;
 };
 
-/*
+
 //TEST SECTION
 void* testfuc2(void* a){
 	int i = 0;
@@ -652,5 +652,5 @@ int main(){
 		}
 	}; //busy work
 	return 0;
-}*/
+}
 
