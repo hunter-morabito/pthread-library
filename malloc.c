@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#define malloc(x) 	myallocate(x, __FILE__, __LINE__,THREADREQ)
+#define free(x)		mydeallocate(x, __FILE__, __LINE__,THREADREQ)
+
+#define THREADREQ 0
+#define LIBRARYREQ 1
 #define MEMSIZE 8388608
 #define SWAP_FILE "SWAP"
 
@@ -31,6 +36,19 @@ void mallocInit() {
 	//create EVERY page and FIRST mementry overhead
 	int i = 0;
 	for (; i < MEMSIZE - (4*4096); i += 4096){
+		temp = (struct Page*)(memblock + i);
+		temp->isfree = 1;
+		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
+		temp->ownerTread = 0;
+		firstEntry = (struct MemEntry *)(memblock + i + sizeof(struct Page)); //static location of first mementry
+		firstEntry->isfree = 1;
+		firstEntry->size = temp->freeSpace;
+		firstEntry->next = NULL;
+		firstEntry->prev = NULL;
+	}
+
+	i = 0;
+	for (; i < MEMSIZE; i += 4096){
 		temp = (struct Page*)(memblock + i);
 		temp->isfree = 1;
 		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
@@ -115,7 +133,7 @@ void * myallocate(size_t size, char *file, size_t line, unsigned int requester) 
 
 	struct Page * temp;
 	struct MemEntry * firstEntry;
-	for (int i = 0; i < 16384; i += 4096) {
+	for (i = 0; i < 16384; i += 4096) {
 		temp = (struct Page*)(memblock + i);
 		temp->isfree = 1;
 		temp->freeSpace = 4096 - sizeof(struct Page) - sizeof(struct MemEntry);
@@ -160,6 +178,13 @@ void mydeallocate(void * memlocation, char *file, size_t line, unsigned int requ
 	}
 
 	struct MemEntry * memptr = (struct MemEntry*)((char*)memlocation - sizeof(struct MemEntry));
+
+	// if(memptr->isfree==1){
+	// 	fprintf(stderr, "Pointer has already been freed, free failed in FILE: '%s' on LINE: %zu\n", file, line);
+	// 	return;
+	// }
+
+
 	//find the page of the MemEntry
 	struct MemEntry * tempptr = memptr;
 	while (tempptr->prev != NULL) {
@@ -175,8 +200,13 @@ void mydeallocate(void * memlocation, char *file, size_t line, unsigned int requ
 		if (prev != NULL && prev->isfree) { //combine the previous and current blocks
 			if (next != NULL && next->isfree) { //combine all three
 				prev->size += memptr->size + next->size + 2 * sizeof(struct MemEntry);
-				prev->next = next->next;
-				next->next->prev = prev;
+				if(next->next!=NULL){
+					prev->next = next->next;
+					next->next->prev = prev;
+				}
+				else{
+					prev->next = NULL;
+				}
 				pageptr->freeSpace += memptr->size + 2 * sizeof(struct MemEntry);
 			}
 			else {
@@ -298,3 +328,19 @@ int main(){
 
 	return 0;
 }*/
+
+
+// int main(){
+// 	mallocInit();
+// 	int* a = (int*)malloc(400);
+// 	int* b = (int*)malloc(10);
+// 	int* c = (int*)malloc(30);
+
+// 	free(a);
+// 	free(b);
+// 	free(c);
+// 	free(c);
+
+
+
+// }

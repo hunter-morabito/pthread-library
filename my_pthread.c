@@ -251,7 +251,7 @@ void printQueue(struct pt_queue *queue){
 		return;
 	}
     while(temp != NULL){
-        printf("pid: %d address: 0x%" PRIXPTR "->", temp->thread_block->tid, temp);
+        printf("pid: %d address: %p->", temp->thread_block->tid, temp);
         temp = temp->next;
     }
     printf("\n");
@@ -641,13 +641,13 @@ my_pthread_t t2 = 3;
 //test the code
 int main(){
 	initThreadLib();
-	printf("mainthread: 0x%" PRIXPTR " id: %d\n", mainthread, mainthread->thread_block->tid);
+	printf("mainthread: %p id: %d\n", mainthread, mainthread->thread_block->tid);
 	my_pthread_create(&t1,NULL,&testfuc, (void *) 1);
 	my_pthread_create(&t2,NULL,&testfuc2, (void *) 1);
 	printQueue(quantum1);
 	while(1){
 		if (mainthread != currentthread){
-			printf("mainthread: 0x%" PRIXPTR "\n", currentthread);
+			printf("mainthread: %p\n", currentthread);
 		}
 	}; //busy work
 	return 0;
