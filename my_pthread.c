@@ -622,6 +622,8 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t* mutex){
 	return 0;
 };
 
+/*
+//TEST SECTION
 void* testfuc2(void* a){
 	int i = 0;
 	while (i < 10000000){
@@ -629,7 +631,6 @@ void* testfuc2(void* a){
 	};
 }
 
-//TEST SECTION
 void* testfuc(void* a){
 	while (count < 10000000){
 		count++;
@@ -651,5 +652,5 @@ int main(){
 		}
 	}; //busy work
 	return 0;
-}
+}*/
 
